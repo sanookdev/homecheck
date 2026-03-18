@@ -134,6 +134,9 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-center">
                   <div class="flex items-center justify-center gap-2">
+                    <button @click="viewItem = item" class="text-gray-400 hover:text-gray-700 transition-colors" title="View Details">
+                      <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                    </button>
                     <button @click="openForm(item)" class="text-blue-500 hover:text-blue-700 transition-colors" title="Edit">
                       <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     </button>
@@ -159,6 +162,7 @@
           v-for="item in filteredItems" 
           :key="item.id" 
           :item="item" 
+          @view="(item) => viewItem = item"
           @edit="openForm"
           @delete="handleDelete"
         />
@@ -188,6 +192,14 @@
       @close="closeForm"
       @save="handleSave"
     />
+
+    <!-- Detail Modal -->
+    <DetailModal
+      v-if="viewItem"
+      :item="viewItem"
+      @close="viewItem = null"
+      @edit="(item) => { viewItem = null; openForm(item); }"
+    />
   </div>
 </template>
 
@@ -196,6 +208,7 @@ import { ref, computed, onMounted } from 'vue';
 import api from '../services/api';
 import ChecklistCard from './ChecklistCard.vue';
 import ChecklistForm from './ChecklistForm.vue';
+import DetailModal from './DetailModal.vue';
 
 const items = ref([]);
 const loadingData = ref(true);
@@ -203,6 +216,7 @@ const showForm = ref(false);
 const selectedItem = ref(null);
 const filterStatus = ref('All');
 const viewMode = ref('table'); // default: table
+const viewItem = ref(null);
 
 onMounted(() => {
   fetchItems();

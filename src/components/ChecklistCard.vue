@@ -33,12 +33,21 @@
       </div>
       <p class="text-sm text-gray-500 mb-4 line-clamp-2 h-10">{{ item.description }}</p>
       <div class="flex justify-between items-center mt-4">
-        <button 
-          @click="$emit('edit', item)"
-          class="text-sm font-medium text-brand-secondary hover:text-brand-primary transition-colors"
-        >
-          Edit Details
-        </button>
+        <div class="flex items-center gap-3">
+          <button 
+            @click="$emit('view', item)"
+            class="text-sm font-medium text-gray-400 hover:text-gray-700 transition-colors"
+            title="View Details"
+          >
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+          </button>
+          <button 
+            @click="$emit('edit', item)"
+            class="text-sm font-medium text-brand-secondary hover:text-brand-primary transition-colors"
+          >
+            Edit
+          </button>
+        </div>
         <button 
           @click="$emit('delete', item.id)"
           class="text-sm font-medium text-red-500 hover:text-red-700 transition-colors"
@@ -60,7 +69,7 @@ const props = defineProps({
   }
 });
 
-defineEmits(['edit', 'delete']);
+defineEmits(['edit', 'delete', 'view']);
 
 const formatPrice = (price) => {
   return Number(price).toLocaleString('en-US');
