@@ -1,6 +1,6 @@
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity">
-    <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl transform transition-all">
+    <div class="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl transform transition-all max-h-[90vh] overflow-y-auto">
       <div class="flex justify-between items-center mb-5">
         <h2 class="text-xl font-bold text-gray-800">{{ isEditing ? 'Edit Item' : 'Add New Item' }}</h2>
         <button @click="$emit('close')" class="text-gray-400 hover:text-gray-600">
@@ -56,27 +56,44 @@
         </div>
 
         <div>
-           <label class="block text-sm font-medium text-gray-700 mb-1">Cover Image</label>
-           <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-brand-primary transition-colors bg-gray-50 relative">
-            <div class="space-y-1 text-center" v-if="!imagePreview">
-              <svg class="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-              <div class="flex text-sm text-gray-600 justify-center">
-                <label for="file-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-brand-primary hover:text-brand-secondary focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-brand-primary">
-                  <span>Upload a file</span>
-                  <input id="file-upload" name="file-upload" type="file" class="sr-only" accept="image/*" @change="handleFileChange">
-                </label>
-              </div>
-              <p class="text-xs text-gray-500">PNG, JPG up to 5MB</p>
-            </div>
-            <div v-else class="relative w-full">
-              <img :src="imagePreview" class="h-32 mx-auto object-cover rounded-md shadow-sm" />
-              <button type="button" @click="clearImage" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-md">
-                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Images (max 5)</label>
+          
+          <!-- Preview Grid -->
+          <div v-if="allPreviews.length > 0" class="grid grid-cols-3 gap-2 mb-3">
+            <div v-for="(img, idx) in allPreviews" :key="idx" class="relative group">
+              <img :src="img.url" class="h-24 w-full object-cover rounded-lg shadow-sm" />
+              <button 
+                type="button" 
+                @click="removeImage(idx)"
+                class="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
               </button>
             </div>
           </div>
+
+          <!-- Upload Zone -->
+          <div 
+            v-if="allPreviews.length < 5"
+            class="flex justify-center px-6 pt-4 pb-4 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors bg-gray-50 cursor-pointer"
+            @click="$refs.fileInput.click()"
+          >
+            <div class="text-center">
+              <svg class="mx-auto h-8 w-8 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
+                <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <p class="mt-1 text-sm text-gray-600">Click to add images</p>
+              <p class="text-xs text-gray-400">{{ allPreviews.length }}/5 · PNG, JPG up to 5MB each</p>
+            </div>
+          </div>
+          <input 
+            ref="fileInput" 
+            type="file" 
+            class="hidden" 
+            accept="image/*" 
+            multiple 
+            @change="handleFileChange"
+          />
         </div>
 
         <div>
@@ -118,7 +135,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 
 const props = defineProps({
   initialData: {
@@ -131,8 +148,8 @@ const emit = defineEmits(['close', 'save']);
 
 const isEditing = ref(false);
 const loading = ref(false);
-const imageFile = ref(null);
-const imagePreview = ref(null);
+const newFiles = ref([]);        // Newly picked File objects
+const existingUrls = ref([]);    // URLs already saved in DB
 
 const form = ref({
   title: '',
@@ -142,26 +159,40 @@ const form = ref({
   pin: ''
 });
 
+// Unified preview list: existing URLs + new file blobs
+const allPreviews = computed(() => {
+  const existing = existingUrls.value.map(url => ({ type: 'existing', url }));
+  const added = newFiles.value.map(file => ({ type: 'new', url: URL.createObjectURL(file) }));
+  return [...existing, ...added];
+});
+
 onMounted(() => {
   if (props.initialData) {
     isEditing.value = true;
-    form.value = { ...props.initialData };
-    if (props.initialData.imageUrl) {
-      imagePreview.value = props.initialData.imageUrl;
+    form.value = { ...props.initialData, pin: '' };
+    // Support both old single imageUrl and new imageUrls array
+    if (props.initialData.imageUrls && props.initialData.imageUrls.length > 0) {
+      existingUrls.value = [...props.initialData.imageUrls];
+    } else if (props.initialData.imageUrl) {
+      existingUrls.value = [props.initialData.imageUrl];
     }
   }
 });
 
 const handleFileChange = (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  imageFile.value = file;
-  imagePreview.value = URL.createObjectURL(file);
+  const files = Array.from(e.target.files);
+  const totalAllowed = 5 - allPreviews.value.length;
+  const toAdd = files.slice(0, totalAllowed);
+  newFiles.value = [...newFiles.value, ...toAdd];
+  e.target.value = ''; // reset so same file can be re-picked
 };
 
-const clearImage = () => {
-  imageFile.value = null;
-  imagePreview.value = props.initialData?.imageUrl || null;
+const removeImage = (idx) => {
+  if (idx < existingUrls.value.length) {
+    existingUrls.value.splice(idx, 1);
+  } else {
+    newFiles.value.splice(idx - existingUrls.value.length, 1);
+  }
 };
 
 const handleSubmit = async () => {
@@ -173,15 +204,15 @@ const handleSubmit = async () => {
     formData.append('status', form.value.status);
     formData.append('price', form.value.price);
     formData.append('pin', form.value.pin);
+    formData.append('existingImages', JSON.stringify(existingUrls.value));
     
-    if (imageFile.value) {
-      formData.append('image', imageFile.value);
-    }
+    newFiles.value.forEach(file => {
+      formData.append('images', file);
+    });
 
     emit('save', { id: props.initialData?.id, formData });
   } catch (error) {
     console.error(error);
   }
-  // Let parent close it on success
 };
 </script>

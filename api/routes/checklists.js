@@ -6,8 +6,8 @@ import verifyPin from '../middlewares/verifyPin.js';
 const router = express.Router();
 
 router.get('/', getChecklists);
-router.post('/', upload.single('image'), verifyPin, createChecklist);
-router.put('/:id', upload.single('image'), verifyPin, updateChecklist);
+router.post('/', upload.array('images', 5), verifyPin, createChecklist);
+router.put('/:id', upload.array('images', 5), verifyPin, updateChecklist);
 router.delete('/:id', verifyPin, deleteChecklist);
 
 export default router;

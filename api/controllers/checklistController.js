@@ -31,11 +31,12 @@ export const getChecklists = async (req, res) => {
 export const createChecklist = async (req, res) => {
   try {
     const { title, description, status, price } = req.body;
-    let imageUrl = null;
+    let imageUrls = [];
 
-    if (req.file) {
-      const uploadResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
-      imageUrl = uploadResult.secure_url;
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer, file.mimetype));
+      const results = await Promise.all(uploadPromises);
+      imageUrls = results.map(r => r.secure_url);
     }
 
     const newItem = {
@@ -43,7 +44,7 @@ export const createChecklist = async (req, res) => {
       description: description || '',
       status: status || 'Pending',
       price: Number(price) || 0,
-      imageUrl,
+      imageUrls,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -58,7 +59,7 @@ export const createChecklist = async (req, res) => {
 export const updateChecklist = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description, status, price } = req.body;
+    const { title, description, status, price, existingImages } = req.body;
     let updateData = {
       updatedAt: new Date().toISOString()
     };
@@ -68,10 +69,22 @@ export const updateChecklist = async (req, res) => {
     if (status !== undefined) updateData.status = status;
     if (price !== undefined) updateData.price = Number(price);
 
-    if (req.file) {
-      const uploadResult = await uploadToCloudinary(req.file.buffer, req.file.mimetype);
-      updateData.imageUrl = uploadResult.secure_url;
+    // Keep existing images that user didn't remove
+    let imageUrls = [];
+    if (existingImages) {
+      try {
+        imageUrls = JSON.parse(existingImages);
+      } catch { imageUrls = []; }
     }
+
+    // Upload new files
+    if (req.files && req.files.length > 0) {
+      const uploadPromises = req.files.map(file => uploadToCloudinary(file.buffer, file.mimetype));
+      const results = await Promise.all(uploadPromises);
+      imageUrls = [...imageUrls, ...results.map(r => r.secure_url)];
+    }
+
+    updateData.imageUrls = imageUrls;
 
     await db.collection(COLLECTION_NAME).doc(id).update(updateData);
     const updatedDoc = await db.collection(COLLECTION_NAME).doc(id).get();
